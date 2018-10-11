@@ -114,7 +114,7 @@ def totalSupply():
     """
     :return: the total supply of the token
     """
-    return TOTAL_AMOUNT * FACTOR
+    return Get(ctx, SUPPLY_KEY)
 
 
 def balanceOf(account):
@@ -133,30 +133,27 @@ def transfer(from_acct,to_acct,amount):
     :param amount: the amount of the tokens to be transferred
     :return: True means success, False or raising exception means failure.
     """
-    if from_acct == to_acct:
+    if from_acct == to_acct or amount == 0:
         return True
-    if amount == 0:
-        return True
-    if amount < 0 :
-        return False
     if CheckWitness(from_acct) == False:
         return False
-    if len(to_acct) != 20:
+    if len(to_acct) != 20 or len(from_acct) != 20:
         return False
     fromKey = concat(BALANCE_PREFIX,from_acct)
     fromBalance = Get(ctx,fromKey)
-    if fromBalance < amount:
+    if amount > fromBalance:
         return False
-    if fromBalance == amount:
+    if amount == fromBalance:
         Delete(ctx,fromKey)
     else:
         Put(ctx,fromKey,fromBalance - amount)
 
-    tokey = concat(BALANCE_PREFIX,to_acct)
-    toBalance = Get(ctx,tokey)
+    toKey = concat(BALANCE_PREFIX,to_acct)
+    toBalance = Get(ctx,toKey)
+    Put(ctx,toKey,toBalance + amount)
 
-    Put(ctx,tokey,toBalance + amount)
     Notify(['transfer',from_acct,to_acct,amount])
+
     return True
 
 
@@ -169,7 +166,7 @@ def transferMulti(args):
         if len(p) != 3:
             # return False
             raise Exception("transferMulti params error.")
-        if transfer(p[0],p[1],p[2]) == False:
+        if transfer(p[0], p[1], p[2]) == False:
             # return False # this is wrong since the previous transaction will be successful
             raise Exception("transferMulti failed.")
     return True
@@ -178,6 +175,7 @@ def transferMulti(args):
 def approve(owner,spender,amount):
     """
     owner allow spender to spend amount of token from owner account
+    Note here, the amount should be less than the balance of owner right now.
     :param owner:
     :param spender:
     :param amount:
@@ -188,10 +186,10 @@ def approve(owner,spender,amount):
     if CheckWitness(owner) == False:
         return False
     if len(spender) != 20 or len(owner) != 20:
-        raise Exception("check address length failed")
+        raise Exception("approve params failed")
     key = concat(concat(APPROVE_PREFIX,owner),spender)
-    Put(ctx, key,amount)
-    Notify(['approve', owner, spender, amount])
+    Put(ctx, key, amount)
+    Notify(['approval', owner, spender, amount])
     return True
 
 
@@ -208,7 +206,7 @@ def transferFrom(spender,from_acct,to_acct,amount):
     if CheckWitness(spender) == False:
         return False
     if len(spender) != 20 or len(from_acct) != 20 or len(to_acct) != 20:
-        raise Exception("check address length failed")
+        raise Exception("transferFrom params failed")
 
     fromKey = concat(BALANCE_PREFIX, from_acct)
     fromBalance = Get(ctx, fromKey)
@@ -224,13 +222,14 @@ def transferFrom(spender,from_acct,to_acct,amount):
     elif amount == approvedAmount:
         Delete(ctx,appoveKey)
         Delete(ctx, fromKey)
-        Put(ctx, toKey, toBalance + amount)
     else:
         Put(ctx,appoveKey,approvedAmount - amount)
         Put(ctx, fromKey, fromBalance - amount)
-        Put(ctx, toKey, toBalance + amount)
+
+    Put(ctx, toKey, toBalance + amount)
 
     Notify(['transfer',spender, from_acct,to_acct,amount])
+
     return True
 
 
