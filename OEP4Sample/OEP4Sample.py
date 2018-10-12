@@ -16,7 +16,7 @@ TOTAL_AMOUNT = 1000000000
 BALANCE_PREFIX = bytearray(b'\x01')
 APPROVE_PREFIX = bytearray(b'\x02')
 
-SUPPLY_KEY = 'totoalSupply'
+SUPPLY_KEY = 'totalSupply'
 
 
 def Main(operation, args):
@@ -213,17 +213,17 @@ def transferFrom(spender,from_acct,to_acct,amount):
     if amount > fromBalance:
         return False
 
-    appoveKey = concat(concat(APPROVE_PREFIX,from_acct),spender)
-    approvedAmount = Get(ctx,appoveKey)
+    approveKey = concat(concat(APPROVE_PREFIX,from_acct),spender)
+    approvedAmount = Get(ctx,approveKey)
     toKey = concat(BALANCE_PREFIX,to_acct)
     toBalance = Get(ctx, toKey)
     if amount > approvedAmount:
         return False
     elif amount == approvedAmount:
-        Delete(ctx,appoveKey)
+        Delete(ctx,approveKey)
         Delete(ctx, fromKey)
     else:
-        Put(ctx,appoveKey,approvedAmount - amount)
+        Put(ctx,approveKey,approvedAmount - amount)
         Put(ctx, fromKey, fromBalance - amount)
 
     Put(ctx, toKey, toBalance + amount)
