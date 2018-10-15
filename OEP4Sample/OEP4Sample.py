@@ -6,9 +6,9 @@ from boa.interop.System.Runtime import Notify, CheckWitness
 from boa.builtins import concat, ToScriptHash
 ctx = GetContext()
 
-NAME = 'TokenName'
-SYMBOL = 'Symbol'
-DECIMAL = 8
+NAME = 'MyToken'
+SYMBOL = 'MYT'
+DECIMALS = 8
 FACTOR = 100000000
 OWNER = ToScriptHash("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
 # OWNER = bytearray(b'\x61\x6f\x2a\x4a\x38\x39\x6f\xf2\x03\xea\x01\xe6\xc0\x70\xae\x42\x1b\xb8\xce\x2d')
@@ -107,7 +107,7 @@ def decimals():
     """
     :return: the decimals of the token
     """
-    return DECIMAL
+    return DECIMALS
 
 
 def totalSupply():
@@ -122,6 +122,8 @@ def balanceOf(account):
     :param account:
     :return: the token balance of account
     """
+    if len(account) != 20:
+        raise Exception("address length error")
     return Get(ctx,concat(BALANCE_PREFIX,account))
 
 
@@ -130,15 +132,19 @@ def transfer(from_acct,to_acct,amount):
     Transfer amount of tokens from from_acct to to_acct
     :param from_acct: the account from which the amount of tokens will be transferred
     :param to_acct: the account to which the amount of tokens will be transferred
-    :param amount: the amount of the tokens to be transferred
+    :param amount: the amount of the tokens to be transferred, >= 0
     :return: True means success, False or raising exception means failure.
     """
-    if from_acct == to_acct or amount == 0:
-        return True
+    if len(to_acct) != 20 or len(from_acct) != 20:
+        raise Exception("address length error")
+
     if CheckWitness(from_acct) == False:
         return False
-    if len(to_acct) != 20 or len(from_acct) != 20:
-        return False
+
+    # This part is marked as commits since transferring of 0 MYT should fire event, too.
+    # if from_acct == to_acct or amount == 0:
+    #     return True
+
     fromKey = concat(BALANCE_PREFIX,from_acct)
     fromBalance = Get(ctx,fromKey)
     if amount > fromBalance:
@@ -178,15 +184,16 @@ def approve(owner,spender,amount):
     Note here, the amount should be less than the balance of owner right now.
     :param owner:
     :param spender:
-    :param amount:
+    :param amount: amount>=0
     :return: True means success, False or raising exception means failure.
     """
+    if len(spender) != 20 or len(owner) != 20:
+        raise Exception("address length error")
     if amount > balanceOf(owner):
         return False
     if CheckWitness(owner) == False:
         return False
-    if len(spender) != 20 or len(owner) != 20:
-        raise Exception("approve params failed")
+
     key = concat(concat(APPROVE_PREFIX,owner),spender)
     Put(ctx, key, amount)
     Notify(['approval', owner, spender, amount])
@@ -206,7 +213,7 @@ def transferFrom(spender,from_acct,to_acct,amount):
     if CheckWitness(spender) == False:
         return False
     if len(spender) != 20 or len(from_acct) != 20 or len(to_acct) != 20:
-        raise Exception("transferFrom params failed")
+        raise Exception("address length error")
 
     fromKey = concat(BALANCE_PREFIX, from_acct)
     fromBalance = Get(ctx, fromKey)
@@ -228,7 +235,7 @@ def transferFrom(spender,from_acct,to_acct,amount):
 
     Put(ctx, toKey, toBalance + amount)
 
-    Notify(['transfer',spender, from_acct,to_acct,amount])
+    Notify(['transfer',from_acct,to_acct,amount])
 
     return True
 
