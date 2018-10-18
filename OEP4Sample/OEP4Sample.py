@@ -4,6 +4,7 @@ An Example of OEP-4
 from boa.interop.System.Storage import GetContext, Get, Put, Delete
 from boa.interop.System.Runtime import Notify, CheckWitness
 from boa.builtins import concat, ToScriptHash
+from boa.interop.Ontology.Runtime import AddressToBase58
 ctx = GetContext()
 
 NAME = 'MyToken'
@@ -86,6 +87,7 @@ def init():
         total = TOTAL_AMOUNT * FACTOR
         Put(ctx,SUPPLY_KEY,total)
         Put(ctx,concat(BALANCE_PREFIX,OWNER),total)
+        ownerBase58 = AddressToBase58(OWNER)
         Notify(['transfer', '', OWNER, total])
         return True
 
@@ -157,7 +159,11 @@ def transfer(from_acct,to_acct,amount):
     toBalance = Get(ctx,toKey)
     Put(ctx,toKey,toBalance + amount)
 
-    Notify(['transfer',from_acct,to_acct,amount])
+    fromBase58 = AddressToBase58(from_acct)
+    toBase58 = AddressToBase58(to_acct)
+    Notify(['transfer', fromBase58, toBase58, amount])
+
+    # Notify(['transfer', from_acct, to_acct, amount])
 
     return True
 
@@ -227,7 +233,7 @@ def transferFrom(spender,from_acct,to_acct,amount):
         return False
     elif amount == approvedAmount:
         Delete(ctx,approveKey)
-        Delete(ctx, fromKey)
+        Delete(ctx, fromBalance - amount)
     else:
         Put(ctx,approveKey,approvedAmount - amount)
         Put(ctx, fromKey, fromBalance - amount)
