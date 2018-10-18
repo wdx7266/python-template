@@ -14,7 +14,7 @@ OWNER = ToScriptHash("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
 # OWNER = bytearray(b'\x61\x6f\x2a\x4a\x38\x39\x6f\xf2\x03\xea\x01\xe6\xc0\x70\xae\x42\x1b\xb8\xce\x2d')
 TOTAL_AMOUNT = 1000000000
 BALANCE_PREFIX = bytearray(b'\x01')
-APPROVE_PREFIX = bytearray(b'\x02')
+APPROVE_PREFIX = b'\x02'
 
 SUPPLY_KEY = 'totalSupply'
 
@@ -68,7 +68,7 @@ def Main(operation, args):
         return approve(owner,spender,amount)
     if operation == 'allowance':
         if len(args) != 2:
-            return False;
+            return False
         owner = args[0]
         spender = args[1]
         return allowance(owner,spender)
@@ -137,7 +137,6 @@ def transfer(from_acct,to_acct,amount):
     """
     if len(to_acct) != 20 or len(from_acct) != 20:
         raise Exception("address length error")
-
     if CheckWitness(from_acct) == False:
         return False
 
@@ -235,7 +234,7 @@ def transferFrom(spender,from_acct,to_acct,amount):
 
     Put(ctx, toKey, toBalance + amount)
 
-    Notify(['transfer',from_acct,to_acct,amount])
+    Notify(['transfer', from_acct,to_acct,amount])
 
     return True
 
