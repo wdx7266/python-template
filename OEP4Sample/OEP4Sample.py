@@ -98,6 +98,7 @@ def init():
 
         return True
 
+
 def name():
     """
     :return: name of the token
