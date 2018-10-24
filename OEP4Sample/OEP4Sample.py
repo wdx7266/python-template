@@ -1,30 +1,28 @@
 """
 An Example of OEP-4
 """
+from boa.interop.Ontology.Runtime import AddressToBase58, Base58ToAddress
 from boa.interop.System.Storage import GetContext, Get, Put, Delete
 from boa.interop.System.Runtime import Notify, CheckWitness
 from boa.interop.System.Action import RegisterAction
 from boa.builtins import concat, ToScriptHash
-from boa.interop.Ontology.Runtime import AddressToBase58, Base58ToAddress
 
 TransferEvent = RegisterAction("transfer", "from", "to", "amount")
 ApprovalEvent = RegisterAction("approval", "owner", "spender", "amount")
 
 ctx = GetContext()
 
-NAME = 'MyToken'
-SYMBOL = 'MYT'
-DECIMALS = 8
-FACTOR = 100000000
-OWNER = ToScriptHash("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
-# OWNER = bytearray(b'\x61\x6f\x2a\x4a\x38\x39\x6f\xf2\x03\xea\x01\xe6\xc0\x70\xae\x42\x1b\xb8\xce\x2d')
+NAME = 'DXToken'
+SYMBOL = 'DX'
+DECIMALS = 10
+OWNER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
 TOTAL_AMOUNT = 1000000000
 BALANCE_PREFIX = bytearray(b'\x01')
 APPROVE_PREFIX = b'\x02'
 SUPPLY_KEY = 'TotalSupply'
 
 
-def Main(operation, args):
+def main(operation, args):
     """
     :param operation:
     :param args:
@@ -88,14 +86,11 @@ def init():
         Notify("Already initialized!")
         return False
     else:
+        FACTOR = Pow(10, DECIMALS)
         total = TOTAL_AMOUNT * FACTOR
         Put(ctx,SUPPLY_KEY,total)
         Put(ctx,concat(BALANCE_PREFIX,OWNER),total)
-
-        # Notify(["transfer", "", Base58ToAddress(OWNER), total])
-        ownerBase58 = AddressToBase58(OWNER)
-        TransferEvent("", ownerBase58, total)
-
+        TransferEvent("", OWNER, total)
         return True
 
 
@@ -162,10 +157,7 @@ def transfer(from_acct,to_acct,amount):
     toKey = concat(BALANCE_PREFIX,to_acct)
     toBalance = Get(ctx,toKey)
     Put(ctx,toKey,toBalance + amount)
-
-    # Notify(["transfer", AddressToBase58(from_acct), AddressToBase58(to_acct), amount])
-    TransferEvent(AddressToBase58(from_acct), AddressToBase58(to_acct), amount)
-
+    TransferEvent(from_acct, to_acct, amount)
     return True
 
 
@@ -199,13 +191,9 @@ def approve(owner,spender,amount):
         return False
     if amount > balanceOf(owner):
         return False
-
     key = concat(concat(APPROVE_PREFIX,owner),spender)
     Put(ctx, key, amount)
-
-    # Notify(["approval", AddressToBase58(owner), AddressToBase58(spender), amount])
-    ApprovalEvent(AddressToBase58(owner), AddressToBase58(spender), amount)
-
+    ApprovalEvent(owner, spender, amount)
     return True
 
 
@@ -245,7 +233,8 @@ def transferFrom(spender,from_acct,to_acct,amount):
     Put(ctx, toKey, toBalance + amount)
 
     # Notify(["transfer", AddressToBase58(from_acct), AddressToBase58(to_acct), amount])
-    TransferEvent(AddressToBase58(from_acct), AddressToBase58(to_acct), amount)
+    # TransferEvent(AddressToBase58(from_acct), AddressToBase58(to_acct), amount)
+    TransferEvent(from_acct, to_acct, amount)
 
     return True
 
@@ -259,3 +248,54 @@ def allowance(owner,spender):
     """
     key = concat(concat(APPROVE_PREFIX,owner),spender)
     return Get(ctx,key)
+    
+def Revert():
+    """
+    Revert the transaction. The opcodes of this function is `09f7f6f5f4f3f2f1f000f0`,
+    but it will be changed to `ffffffffffffffffffffff` since opcode THROW doesn't
+    work, so, revert by calling unused opcode.
+    """
+    raise Exception(0xF1F1F2F2F3F3F4F4)
+
+def Require(condition):
+	"""
+	If condition is not satisfied, return false
+	:param condition: required condition
+	:return: True or false
+	"""
+	if not condition:
+		Revert()
+	return True
+
+def Mul(a, b):
+	"""
+	Multiplies two numbers, throws on overflow.
+    :param a: operand a
+    :param b: operand b
+    :return: a - b if a - b > 0 or revert the transaction.
+	"""
+	if a == 0:
+		return 0
+	c = a * b
+	Require(c / a == b)
+	return c
+
+def Pow(a, b):
+    """
+    a to the power of b
+    :param a the base
+    :param b the power value
+    :return a^b
+    """
+    c = 0
+    if a == 0:
+        c = 0
+    elif b == 0:
+        c = 1
+    else:
+        i = 0
+        c = 1
+        while i < b:
+            c = Mul(c, a)
+            i = i + 1
+    return c
